@@ -1,0 +1,22 @@
+# ── Secretos — NUNCA commitear ────────────────────────────────────────
+.env
+*.env
+.env.local
+.env.*.local
+
+# ── Reportes generados (pueden contener datos sensibles) ──────────────
+osint_report_*.md
+osint_report_*.json
+osint_run.log
+
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# ── OS ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
