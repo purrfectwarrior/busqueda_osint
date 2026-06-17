@@ -86,55 +86,72 @@ log = logging.getLogger("OSINT")
 #   • bucket_variants   → nombres de bucket cloud derivados del org
 #   • org_slug          → slug para búsquedas (sin puntos ni guiones)
 
+# TLDs de dos niveles conocidos (Bolivia y otros países comunes)
+TWO_LEVEL_TLDS = {
+    # Bolivia
+    "com.bo", "edu.bo", "org.bo", "net.bo", "gob.bo", "mil.bo",
+    # Perú
+    "com.pe", "edu.pe", "org.pe", "net.pe", "gob.pe",
+    # Argentina
+    "com.ar", "edu.ar", "org.ar", "net.ar", "gob.ar",
+    # Brasil
+    "com.br", "edu.br", "org.br", "net.br", "gov.br",
+    # Reino Unido
+    "co.uk", "org.uk", "me.uk", "net.uk", "ac.uk",
+    # Australia
+    "com.au", "edu.au", "org.au", "net.au", "gov.au",
+    # México
+    "com.mx", "edu.mx", "org.mx", "net.mx", "gob.mx",
+}
+
 def _derive_targets(domain: str) -> dict:
-    """Genera todos los targets derivados a partir del dominio base."""
+    """Genera todos los targets derivados a partir del dominio base.
+    Soporta TLDs de dos niveles: .com.bo, .edu.bo, .co.uk, etc.
+    """
     domain = domain.strip().lower().lstrip("www.")
-
-    # Partes del dominio: "bridge-funding-group.com" → ["bridge-funding-group", "com"]
     parts = domain.split(".")
-    apex  = ".".join(parts[-2:]) if len(parts) >= 2 else domain
-    # Nombre sin TLD: "bridge-funding-group"
-    name  = parts[-2] if len(parts) >= 2 else parts[0]
-    # Slug sin guiones ni puntos: "bridgefundinggroup"
-    slug  = name.replace("-", "").replace("_", "")
-    # TLD
-    tld   = parts[-1] if len(parts) >= 2 else "com"
 
-    # Variantes de dominio: dominio principal + alternativas con/sin guiones
+    # Detectar si los últimos 2 segmentos forman un TLD compuesto
+    # Ej: "edu.bo", "com.bo", "co.uk"
+    two_level = ".".join(parts[-2:]) if len(parts) >= 2 else ""
+    if two_level in TWO_LEVEL_TLDS and len(parts) >= 3:
+        # unifranz.edu.bo → tld="edu.bo", name="unifranz", apex="unifranz.edu.bo"
+        tld  = two_level
+        name = parts[-3]
+        apex = ".".join(parts[-3:])
+    else:
+        # bcp.com → tld="com", name="bcp", apex="bcp.com"
+        tld  = parts[-1]
+        name = parts[-2] if len(parts) >= 2 else parts[0]
+        apex = ".".join(parts[-2:]) if len(parts) >= 2 else domain
+
+    slug        = name.replace("-", "").replace("_", "")
     name_nodash = name.replace("-", "")
-    variants = list(dict.fromkeys([          # preserva orden, elimina dupes
+
+    variants = list(dict.fromkeys([
         apex,
         f"{name_nodash}.{tld}",
         f"{name}.{tld}",
         f"www.{apex}",
     ]))
 
-    # Variantes de bucket: slug + variaciones con guiones y sufijos comunes
     bucket_base = [
-        slug,
-        name,
-        name_nodash,
-        f"{slug}-inc",
-        f"{name}-inc",
-        f"{slug}-docs",
-        f"{slug}-assets",
-        f"{slug}-data",
-        f"{slug}-backup",
-        f"{slug}-prod",
-        f"{slug}-dev",
-        f"{slug}-staging",
-        f"{name}-assets",
+        slug, name, name_nodash,
+        f"{slug}-inc",      f"{name}-inc",
+        f"{slug}-docs",     f"{slug}-assets",
+        f"{slug}-data",     f"{slug}-backup",
+        f"{slug}-prod",     f"{slug}-dev",
+        f"{slug}-staging",  f"{name}-assets",
         f"{name}-data",
     ]
-    bucket_variants = list(dict.fromkeys(bucket_base))  # elimina dupes
 
     return {
         "target_domain":   apex,
-        "target_org":      name,          # "bridge-funding-group"
-        "target_slug":     slug,          # "bridgefundinggroup"  (sin guiones)
+        "target_org":      name,
+        "target_slug":     slug,
         "target_tld":      tld,
         "target_variants": variants,
-        "bucket_variants": bucket_variants,
+        "bucket_variants": list(dict.fromkeys(bucket_base)),
     }
 
 
